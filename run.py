@@ -13,17 +13,35 @@ class Usuario(db.Model):
     senha = db.Column(db.String(20), nullable=False)
 
 
-class EnqueteOpcoes(db.Model):
+class Catalogo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    opcao = db.Column(db.String(100), unique=True, nullable=False)
-    enquete_id = db.Column(db.Integer, db.ForeignKey('enquete.id'), nullable=False)
-    votos = db.relationship('Votos', backref='author', lazy=True, cascade='all,delete')
+    titulo = db.Column(db.String(100), nullable=False)
+    sinopse = db.Column(db.Text, nullable=False)
+    elenco = db.Column(db.Text, nullable=False)
+    diretor = db.Column(db.String(50), nullable=False)
+    lancamento = db.Column(db.Integer, nullable=False)
+    genero = db.Column(db.String(50), nullable=False)
+    nota = db.Column(db.Float) 
 
 
-class Votos(db.Model):
+
+class HistoricoVisualizacao(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    data = db.Column(db.DateTime, nullable=False, default=datetime.now)
-    enquete_opcoes_id = db.Column(db.Integer, db.ForeignKey('enquete_opcoes.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
+    catalogo_id = db.Column(db.Integer, db.ForeignKey('catalogo.id'), nullable=False)
+    timestamp = db.Column(db.DateTime, nullable=False, default=datetime.now)
+
+
+class ListaReproducao(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
+    nome = db.Column(db.String(100), nullable=False)
+
+
+class ListaConteudo(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    catalogo_id = db.Column(db.Integer, db.ForeignKey('catalogo.id'), nullable=False)
+    lista_id = db.Column(db.Integer, db.ForeignKey('lista_reproducao.id'), nullable=False)
 
 if __name__ == '__main__':
     with app.app_context():
