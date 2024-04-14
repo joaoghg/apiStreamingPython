@@ -71,8 +71,26 @@ def signUp():
 
     try:
         user = auth.create_user_with_email_and_password(email, password)
+        return jsonify(user)
     except:
         return jsonify({'msg': 'Já existe um usuário com esse email!'}), 400
+
+
+@app.route('/api/signIn', methods=['POST'])
+def signIn():
+    dados = request.json
+
+    if 'email' not in dados or 'password' not in dados:
+        return jsonify({'msg': 'Campos "email" e "password" são obrigatórios.'}), 400
+
+    email = dados['email']
+    password = dados['password']
+
+    try:
+        login = auth.sign_in_with_email_and_password(email, password)
+        return jsonify(login)
+    except:
+        return jsonify({'msg': 'Email ou senha inválida!'}), 400
 
 
 if __name__ == '__main__':
