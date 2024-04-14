@@ -1,10 +1,25 @@
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+import pyrebase
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 db = SQLAlchemy(app)
+
+firebaseConfig = {
+    "apiKey": "AIzaSyDf7-zZBPnYromKqga6tBZDVsLMwNCpaoY",
+    "authDomain": "apistreamingpython.firebaseapp.com",
+    "projectId": "apistreamingpython",
+    "storageBucket": "apistreamingpython.appspot.com",
+    "messagingSenderId": "583422505017",
+    "databaseURL": "sqlite:///database.db",
+    "appId": "1:583422505017:web:15a1abc590682ac3fddde8"
+}
+
+firebase = pyrebase.initialize_app(firebaseConfig)
+auth = firebase.auth()
+
 
 class Usuario(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -21,8 +36,7 @@ class Catalogo(db.Model):
     diretor = db.Column(db.String(50), nullable=False)
     lancamento = db.Column(db.Integer, nullable=False)
     genero = db.Column(db.String(50), nullable=False)
-    nota = db.Column(db.Float) 
-
+    nota = db.Column(db.Float)
 
 
 class HistoricoVisualizacao(db.Model):
@@ -42,6 +56,25 @@ class ListaConteudo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     catalogo_id = db.Column(db.Integer, db.ForeignKey('catalogo.id'), nullable=False)
     lista_id = db.Column(db.Integer, db.ForeignKey('lista_reproducao.id'), nullable=False)
+
+
+@app.route('/api/signUp', methods=['POST'])
+def signUp():
+    dados = request.json
+
+    if 'userName' not in dados or 'email' not in dados or 'password' not in dados:
+        return jsonify({'msg': 'Campos "userName", "email" e "password" são obrigatórios.'}), 400
+
+    userName = dados['userName']
+    email = dados['email']
+    password = dados['password']
+
+    try:
+        user = auth.create_user_with_email_and_password(email, password)
+    except:
+        return jsonify({'msg': 'Já existe um usuário com esse email!'}), 400
+
+
 
 if __name__ == '__main__':
     with app.app_context():
