@@ -51,6 +51,20 @@ class ListaConteudo(db.Model):
     lista_id = db.Column(db.Integer, db.ForeignKey('lista_reproducao.id'), nullable=False)
 
 
+@app.route('/api/token', methods=['POST'])
+def verifyIdToken():
+    dados = request.json
+    token = dados['token']
+    try:
+        dados_user = auth.get_account_info(token)
+        
+        return jsonify(dados_user)
+    except:
+        return jsonify({'msg': 'Erro'}), 400
+    
+
+
+
 @app.route('/api/signUp', methods=['POST'])
 def signUp():
     dados = request.json
@@ -83,6 +97,7 @@ def signIn():
         return jsonify(login)
     except:
         return jsonify({'msg': 'Email ou senha inválida!'}), 400
+    
 
 
 if __name__ == '__main__':
