@@ -21,13 +21,6 @@ firebase = pyrebase.initialize_app(firebaseConfig)
 auth = firebase.auth()
 
 
-class Usuario(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(100), unique=True, nullable=False)
-    nome = db.Column(db.String(100), nullable=False)
-    senha = db.Column(db.String(20), nullable=False)
-
-
 class Catalogo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     titulo = db.Column(db.String(100), nullable=False)
@@ -41,14 +34,14 @@ class Catalogo(db.Model):
 
 class HistoricoVisualizacao(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
+    user_id = db.Column(db.Integer, nullable=False)
     catalogo_id = db.Column(db.Integer, db.ForeignKey('catalogo.id'), nullable=False)
     timestamp = db.Column(db.DateTime, nullable=False, default=datetime.now)
 
 
 class ListaReproducao(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
+    user_id = db.Column(db.Integer, nullable=False)
     nome = db.Column(db.String(100), nullable=False)
 
 
@@ -62,10 +55,9 @@ class ListaConteudo(db.Model):
 def signUp():
     dados = request.json
 
-    if 'userName' not in dados or 'email' not in dados or 'password' not in dados:
-        return jsonify({'msg': 'Campos "userName", "email" e "password" são obrigatórios.'}), 400
+    if 'email' not in dados or 'password' not in dados:
+        return jsonify({'msg': 'Campos "email" e "password" são obrigatórios.'}), 400
 
-    userName = dados['userName']
     email = dados['email']
     password = dados['password']
 
