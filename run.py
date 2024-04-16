@@ -142,6 +142,30 @@ def catalog():
     return jsonify(catalog_data), 200
 
 
+@app.route('/api/catalog/<int:id>', methods=['GET'])
+def content_detail(id):
+    token = request.headers.get('Authorization')
+    user = getUser(token)
+    if user['erro'] == '1':
+        return jsonify({'msg': user['msg']}), 401
+
+    content = Catalogo.query.get(id)
+    if not content:
+        return jsonify({'msg': 'Conteúdo não encontrado!'}), 404
+
+    content_data = {
+        'id': content.id, 
+        'titulo': content.titulo, 
+        'lancamento': content.lancamento, 
+        'sinopse': content.sinopse, 
+        'elenco': content.elenco, 
+        'diretor': content.diretor, 
+        'genero': content.genero, 
+        'nota': content.nota
+    }
+    
+    return jsonify(content_data), 200
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
