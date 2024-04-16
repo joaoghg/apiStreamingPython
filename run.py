@@ -52,16 +52,15 @@ class ListaConteudo(db.Model):
 
 
 def getUser(token):
-
     if not token:
-        return jsonify({'msg': 'Token inexistente!'}), 401
+        return {'msg': 'Token inexistente!', 'erro': '1'}
 
     try:
         user = auth.get_account_info(token)
         uid = user['users'][0]['localId']
-        return uid
+        return {'uid': uid, 'erro': '0'}
     except Exception as e:
-        return jsonify({'msg': 'Token inválido ou expirado!'}), 401 
+        return {'msg': 'Token inválido ou expirado!', 'erro': '1'}
     
 
 def is_catalogo_vazio():
@@ -130,6 +129,18 @@ def signIn():
     except:
         return jsonify({'msg': 'Email ou senha inválida!'}), 400
     
+
+@app.route('/api/catalog', methods=['GET'])
+def catalog():
+    token = request.headers.get('Authorization')
+    user = getUser(token)
+    if user['erro'] == '1':
+        return jsonify({'msg': user['msg']}), 401
+    
+    content = Catalogo.query.all()
+    catalog_data = [{'id': c.id, 'titulo': c.titulo, 'lancamento': c.lancamento, 'sinopse': c.sinopse, 'elenco': c.elenco, 'diretor': c.diretor, 'genero': c.genero, 'nota': c.nota} for c in content]
+    return jsonify(catalog_data), 200
+
 
 if __name__ == '__main__':
     with app.app_context():
