@@ -51,18 +51,50 @@ class ListaConteudo(db.Model):
     lista_id = db.Column(db.Integer, db.ForeignKey('lista_reproducao.id'), nullable=False)
 
 
-@app.route('/api/token', methods=['POST'])
-def verifyIdToken():
-    dados = request.json
-    token = dados['token']
+def getUser(token):
+
+    if not token:
+        return jsonify({'msg': 'Token inexistente!'}), 401
+
     try:
-        dados_user = auth.get_account_info(token)
-        
-        return jsonify(dados_user)
-    except:
-        return jsonify({'msg': 'Erro'}), 400
+        user = auth.get_account_info(token)
+        uid = user['users'][0]['localId']
+        return uid
+    except Exception as e:
+        return jsonify({'msg': 'Token inválido ou expirado!'}), 401 
     
 
+def is_catalogo_vazio():
+    return db.session.query(db.exists().where(Catalogo.id != None)).scalar()
+
+
+def insert_catalogo_padrao():
+    initial_content = [
+        {
+            'titulo': 'Filme 1',
+            'sinopse': 'Sinopse do Filme 1',
+            'elenco': 'Elenco do Filme 1',
+            'diretor': 'Diretor 1',
+            'lancamento': 2020,
+            'genero': 'Ação',
+            'nota': 7.5
+        },
+        {
+            'titulo': 'Filme 2',
+            'sinopse': 'Sinopse do Filme 2',
+            'elenco': 'Elenco do Filme 2',
+            'diretor': 'Diretor 2',
+            'lancamento': 2019,
+            'genero': 'Comédia',
+            'nota': 8.0
+        }
+    ]
+    
+    for content in initial_content:
+        new_content = Catalogo(**content)
+        db.session.add(new_content)
+    
+    db.session.commit()
 
 
 @app.route('/api/signUp', methods=['POST'])
@@ -102,4 +134,7 @@ def signIn():
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
+        if not is_catalogo_vazio():
+            insert_catalogo_padrao()
+
     app.run(debug=True)
