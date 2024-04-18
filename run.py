@@ -197,6 +197,24 @@ def play_video(id):
     return jsonify({'msg': f'Reproduzindo {video.titulo}'}), 200
 
 
+@app.route('/api/historic', methods=['GET'])
+def historic():
+    uid = request.uid
+    historico = HistoricoVisualizacao.query.filter_by(user_id=uid).all()
+    if not historico:
+        return jsonify({'msg': 'Usuário não reproduziu nenhum vídeo'}), 200
+
+    historico_data = []
+    for item in historico:
+        catalogo_item = Catalogo.query.get(item.catalogo_id)
+        historico_data.append({
+            'titulo': catalogo_item.titulo,
+            'data': item.timestamp
+        })
+
+    return jsonify(historico_data), 200
+
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
