@@ -6,9 +6,9 @@ import firebase_admin
 import os
 
 cred_path = os.path.join(os.path.dirname(__file__), 'auth-firebase.json')
-
 cred = credentials.Certificate(cred_path)
 firebase_admin.initialize_app(cred)
+
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 db = SQLAlchemy(app)
