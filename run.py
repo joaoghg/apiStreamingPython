@@ -1,24 +1,17 @@
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
-import pyrebase
+from firebase_admin import auth, credentials
+import firebase_admin
+import os
 
+cred_path = os.path.join(os.path.dirname(__file__), 'auth-firebase.json')
+
+cred = credentials.Certificate(cred_path)
+firebase_admin.initialize_app(cred)
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 db = SQLAlchemy(app)
-
-firebaseConfig = {
-    "apiKey": "AIzaSyDf7-zZBPnYromKqga6tBZDVsLMwNCpaoY",
-    "authDomain": "apistreamingpython.firebaseapp.com",
-    "projectId": "apistreamingpython",
-    "storageBucket": "apistreamingpython.appspot.com",
-    "messagingSenderId": "583422505017",
-    "databaseURL": "sqlite:///database.db",
-    "appId": "1:583422505017:web:15a1abc590682ac3fddde8"
-}
-
-firebase = pyrebase.initialize_app(firebaseConfig)
-auth = firebase.auth()
 
 
 class Catalogo(db.Model):
@@ -51,17 +44,19 @@ class ListaConteudo(db.Model):
     lista_id = db.Column(db.Integer, db.ForeignKey('lista_reproducao.id'), nullable=False)
 
 
-def getUser(token):
-    if not token:
-        return {'msg': 'Token inexistente!', 'erro': '1'}
+def verify_token():
+    id_token = request.headers.get('Authorization')
+    if not id_token:
+        return jsonify({'msg': 'Token não fornecido'}), 401
 
     try:
-        user = auth.get_account_info(token)
-        uid = user['users'][0]['localId']
-        return {'uid': uid, 'erro': '0'}
-    except Exception as e:
-        return {'msg': 'Token inválido ou expirado!', 'erro': '1'}
-    
+        decoded_token = auth.verify_id_token(id_token)
+        request.uid = decoded_token['uid']
+    except auth.InvalidIdTokenError:
+        return jsonify({'msg': 'Token inválido'}), 401
+    except auth.ExpiredIdTokenError:
+        return jsonify({'msg': 'Token expirado'}), 401
+
 
 def is_catalogo_vazio():
     return db.session.query(db.exists().where(Catalogo.id != None)).scalar()
@@ -88,16 +83,22 @@ def insert_catalogo_padrao():
             'nota': 8.0
         }
     ]
-    
+
     for content in initial_content:
         new_content = Catalogo(**content)
         db.session.add(new_content)
-    
+
     db.session.commit()
 
 
-@app.route('/api/signUp', methods=['POST'])
-def signUp():
+@app.before_request
+def before_request_func():
+    if request.endpoint not in ['api/login', 'api/signup']:
+        return verify_token()
+
+
+@app.route('/api/signup', methods=['POST'])
+def sign_up():
     dados = request.json
 
     if 'email' not in dados or 'password' not in dados:
@@ -107,14 +108,17 @@ def signUp():
     password = dados['password']
 
     try:
-        user = auth.create_user_with_email_and_password(email, password)
-        return jsonify(user)
-    except:
-        return jsonify({'msg': 'Já existe um usuário com esse email!'}), 400
+        user = auth.create_user(
+            email=email,
+            password=password
+        )
+        return jsonify({'msg': 'Usuário registrado!', 'id': user.uid})
+    except Exception as e:
+        return jsonify({'msg': str(e)}), 400
 
 
-@app.route('/api/signIn', methods=['POST'])
-def signIn():
+@app.route('/api/login', methods=['POST'])
+def login():
     dados = request.json
 
     if 'email' not in dados or 'password' not in dados:
@@ -124,47 +128,42 @@ def signIn():
     password = dados['password']
 
     try:
-        login = auth.sign_in_with_email_and_password(email, password)
-        return jsonify(login)
-    except:
-        return jsonify({'msg': 'Email ou senha inválida!'}), 400
-    
+        user = auth.get_user_by_email(email)
+        if user:
+            auth_user = auth.sign_in_with_email_and_password(email, password)
+            return jsonify({'msg': 'Login realizado', 'id_token': auth_user['idToken']}), 200
+    except auth.AuthError as e:
+        return jsonify({'msg': str(e)}), 401
+
 
 @app.route('/api/catalog', methods=['GET'])
 def catalog():
-    token = request.headers.get('Authorization')
-    user = getUser(token)
-    if user['erro'] == '1':
-        return jsonify({'msg': user['msg']}), 401
-    
     content = Catalogo.query.all()
-    catalog_data = [{'id': c.id, 'titulo': c.titulo, 'lancamento': c.lancamento, 'sinopse': c.sinopse, 'elenco': c.elenco, 'diretor': c.diretor, 'genero': c.genero, 'nota': c.nota} for c in content]
+    catalog_data = [
+        {'id': c.id, 'titulo': c.titulo, 'lancamento': c.lancamento, 'sinopse': c.sinopse, 'elenco': c.elenco,
+         'diretor': c.diretor, 'genero': c.genero, 'nota': c.nota} for c in content]
     return jsonify(catalog_data), 200
 
 
 @app.route('/api/catalog/<int:id>', methods=['GET'])
 def content_detail(id):
-    token = request.headers.get('Authorization')
-    user = getUser(token)
-    if user['erro'] == '1':
-        return jsonify({'msg': user['msg']}), 401
-
     content = Catalogo.query.get(id)
     if not content:
         return jsonify({'msg': 'Conteúdo não encontrado!'}), 404
 
     content_data = {
-        'id': content.id, 
-        'titulo': content.titulo, 
-        'lancamento': content.lancamento, 
-        'sinopse': content.sinopse, 
-        'elenco': content.elenco, 
-        'diretor': content.diretor, 
-        'genero': content.genero, 
+        'id': content.id,
+        'titulo': content.titulo,
+        'lancamento': content.lancamento,
+        'sinopse': content.sinopse,
+        'elenco': content.elenco,
+        'diretor': content.diretor,
+        'genero': content.genero,
         'nota': content.nota
     }
-    
+
     return jsonify(content_data), 200
+
 
 if __name__ == '__main__':
     with app.app_context():
