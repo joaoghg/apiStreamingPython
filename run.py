@@ -2,7 +2,10 @@ from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 from firebase_admin import auth, credentials
+from dotenv import load_dotenv
 import firebase_admin
+import json
+import requests
 import os
 
 cred_path = os.path.join(os.path.dirname(__file__), 'auth-firebase.json')
@@ -12,6 +15,7 @@ firebase_admin.initialize_app(cred)
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 db = SQLAlchemy(app)
+load_dotenv()
 
 
 class Catalogo(db.Model):
@@ -93,7 +97,7 @@ def insert_catalogo_padrao():
 
 @app.before_request
 def before_request_func():
-    if request.endpoint not in ['api/login', 'api/signup']:
+    if request.endpoint not in ['login', 'sign_up']:
         return verify_token()
 
 
@@ -127,13 +131,26 @@ def login():
     email = dados['email']
     password = dados['password']
 
-    try:
-        user = auth.get_user_by_email(email)
-        if user:
-            auth_user = auth.sign_in_with_email_and_password(email, password)
-            return jsonify({'msg': 'Login realizado', 'id_token': auth_user['idToken']}), 200
-    except auth.AuthError as e:
-        return jsonify({'msg': str(e)}), 401
+    url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={os.getenv('FIREBASE_API_KEY')}"
+
+    payload = json.dumps({
+        "email": email,
+        "password": password,
+        "returnSecureToken": True
+    })
+    headers = {
+        'Content-Type': 'application/json'
+    }
+
+    response = requests.request("POST", url, headers=headers, data=payload)
+    if response.status_code != 200:
+        return jsonify({'msg': 'Credenciais inválidas'}), 401
+    json_response = json.loads(response.text)
+    return jsonify({
+        'msg': 'Login realizado com sucesso',
+        'token': json_response['idToken'],
+        'refreshToken': json_response['refreshToken']
+    }), 200
 
 
 @app.route('/api/catalog', methods=['GET'])

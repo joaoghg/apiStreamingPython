@@ -3,3 +3,4 @@ identifier.sqlite
 .idea
 .venv
 auth-firebase.json
+.env
