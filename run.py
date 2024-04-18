@@ -182,6 +182,21 @@ def content_detail(id):
     return jsonify(content_data), 200
 
 
+@app.route('/api/play-video/<int:id>', methods=['GET'])
+def play_video(id):
+    video = Catalogo.query.get(id)
+    if not video:
+        return jsonify({'msg': 'Vídeo não encontrado!'}), 404
+    
+    uid = request.uid
+
+    novo_historico = HistoricoVisualizacao(user_id=uid, catalogo_id=id)
+    db.session.add(novo_historico)
+    db.session.commit()
+
+    return jsonify({'msg': f'Reproduzindo {video.titulo}'}), 200
+
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
