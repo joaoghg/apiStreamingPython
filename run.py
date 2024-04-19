@@ -215,6 +215,110 @@ def historic():
     return jsonify(historico_data), 200
 
 
+@app.route('/api/catalog', methods=['POST'])
+def buscar_catalogo():
+    dados = request.json
+    query = Catalogo.query
+
+    if 'titulo' in dados:
+        query = query.filter(Catalogo.titulo.like(f'%{dados['titulo']}%'))
+
+    if 'genero' in dados:
+        query = query.filter_by(genero=dados['genero'])
+
+    if 'lancamento' in dados:
+        query = query.filter_by(lancamento=dados['lancamento'])
+
+    if 'nota' in dados:
+        query = query.filter_by(nota=dados['nota'])
+
+    if 'elenco' in dados:
+        query = query.filter(Catalogo.elenco.like(f'%{dados['elenco']}%'))
+
+    if 'diretor' in dados:
+        query = query.filter_by(diretor=dados['diretor'])
+
+    catalogo = query.all()
+    catalogo_data = [
+        {'id': c.id, 'titulo': c.titulo, 'lancamento': c.lancamento, 'sinopse': c.sinopse, 'elenco': c.elenco, 'diretor': c.diretor, 'genero': c.genero, 'nota': c.nota} 
+        for c in catalogo
+    ]
+    return jsonify(catalogo_data), 200
+
+
+@app.route('/api/lists', methods=['GET'])
+def listar_listas():
+    uid = request.uid
+    listas = ListaReproducao.query.filter_by(user_id=uid).all()
+    listas_data = [{'id': l.id, 'nome': l.nome} for l in listas]
+    return jsonify(listas_data), 200
+
+
+@app.route('/api/list/<int:lista_id>', methods=['GET'])
+def listar_lista(lista_id):
+    uid = request.uid
+    lista = ListaReproducao.query.filter_by(user_id=uid, id=lista_id).all()
+    if not lista:
+        return jsonify({'msg': 'Lista não encontrada'}), 404
+
+    conteudo = ListaConteudo.query.filter_by(lista_id=lista_id).all()
+    conteudo_data = [{'id': c.id, 'titulo': Catalogo.query.get(c.catalogo_id).titulo} for c in conteudo]
+    return jsonify({'id': lista.id, 'nome': lista.nome, 'conteudo': conteudo_data}), 200
+
+@app.route('/api/list', methods=['POST'])
+def criar_lista():
+    uid = request.uid
+    dados = request.json
+
+    if 'nome' not in dados:
+        return jsonify({'msg' : 'O campo "nome" é obrigatório!'}), 400
+
+    nome = dados['nome']
+
+    nova_lista = ListaReproducao(nome=nome, user_id=uid)
+    db.session.add(nova_lista)
+    db.session.commit()
+
+    return jsonify({'msg': 'Lista criada com sucesso'}), 201
+
+@app.route('/api/list/<int:lista_id>', methods=['DELETE'])
+def deletar_lista(lista_id):
+    uid = request.uid
+    lista = ListaReproducao.query.filter_by(user_id=uid, id=lista_id).all()
+    if not lista:
+        return jsonify({'msg': 'Lista não encontrada!'}), 404
+
+    db.session.delete(lista)
+    db.session.commit()
+
+    return jsonify({'msg': 'Lista deletada com sucesso'}), 200
+
+@app.route('/api/list/<int:lista_id>/add', methods=['POST'])
+def adicionar_conteudo_lista(lista_id):
+    dados = request.json
+    if 'catalogo_id' not in dados:
+        return jsonify(({'msg' : 'O campo "catalogo_id" é obrigatório!'})), 400
+
+    catalogo_id = dados['catalogo_id']
+
+    nova_associacao = ListaConteudo(catalogo_id=catalogo_id, lista_id=lista_id)
+    db.session.add(nova_associacao)
+    db.session.commit()
+
+    return jsonify({'msg': 'Conteúdo adicionado à lista com sucesso'}), 201
+
+@app.route('/api/list/<int:lista_id>/remove/<int:conteudo_id>', methods=['DELETE'])
+def remover_conteudo_lista(lista_id, conteudo_id):
+    associacao = ListaConteudo.query.filter_by(lista_id=lista_id, catalogo_id=conteudo_id).first()
+    if not associacao:
+        return jsonify({'msg': 'Vídeo não encontrado!'}), 404
+
+    db.session.delete(associacao)
+    db.session.commit()
+
+    return jsonify({'msg': 'Vídeo removido da lista com sucesso'}), 200
+
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
