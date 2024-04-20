@@ -221,7 +221,7 @@ def buscar_catalogo():
     query = Catalogo.query
 
     if 'titulo' in dados:
-        query = query.filter(Catalogo.titulo.like(f'%{dados['titulo']}%'))
+        query = query.filter(Catalogo.titulo.like('%{}%'.format(dados['titulo'])))
 
     if 'genero' in dados:
         query = query.filter_by(genero=dados['genero'])
@@ -233,7 +233,7 @@ def buscar_catalogo():
         query = query.filter_by(nota=dados['nota'])
 
     if 'elenco' in dados:
-        query = query.filter(Catalogo.elenco.like(f'%{dados['elenco']}%'))
+        query = query.filter(Catalogo.elenco.like('%{}%'.format(dados['elenco'])))
 
     if 'diretor' in dados:
         query = query.filter_by(diretor=dados['diretor'])
@@ -254,18 +254,21 @@ def listar_listas():
     return jsonify(listas_data), 200
 
 
-@app.route('/api/list/<int:lista_id>', methods=['GET'])
+@app.route('/api/lists/<int:lista_id>', methods=['GET'])
 def listar_lista(lista_id):
     uid = request.uid
-    lista = ListaReproducao.query.filter_by(user_id=uid, id=lista_id).all()
+    lista = ListaReproducao.query.filter_by(user_id=uid, id=lista_id).first()
     if not lista:
         return jsonify({'msg': 'Lista não encontrada'}), 404
 
     conteudo = ListaConteudo.query.filter_by(lista_id=lista_id).all()
+    if not conteudo:
+        return jsonify({'msg' : f'A lista "{lista.nome}" está vazia'})
+
     conteudo_data = [{'id': c.id, 'titulo': Catalogo.query.get(c.catalogo_id).titulo} for c in conteudo]
     return jsonify({'id': lista.id, 'nome': lista.nome, 'conteudo': conteudo_data}), 200
 
-@app.route('/api/list', methods=['POST'])
+@app.route('/api/lists', methods=['POST'])
 def criar_lista():
     uid = request.uid
     dados = request.json
@@ -281,10 +284,10 @@ def criar_lista():
 
     return jsonify({'msg': 'Lista criada com sucesso'}), 201
 
-@app.route('/api/list/<int:lista_id>', methods=['DELETE'])
+@app.route('/api/lists/<int:lista_id>', methods=['DELETE'])
 def deletar_lista(lista_id):
     uid = request.uid
-    lista = ListaReproducao.query.filter_by(user_id=uid, id=lista_id).all()
+    lista = ListaReproducao.query.filter_by(user_id=uid, id=lista_id).first()
     if not lista:
         return jsonify({'msg': 'Lista não encontrada!'}), 404
 
@@ -293,7 +296,7 @@ def deletar_lista(lista_id):
 
     return jsonify({'msg': 'Lista deletada com sucesso'}), 200
 
-@app.route('/api/list/<int:lista_id>/add', methods=['POST'])
+@app.route('/api/lists/<int:lista_id>/add', methods=['POST'])
 def adicionar_conteudo_lista(lista_id):
     dados = request.json
     if 'catalogo_id' not in dados:
@@ -307,7 +310,7 @@ def adicionar_conteudo_lista(lista_id):
 
     return jsonify({'msg': 'Conteúdo adicionado à lista com sucesso'}), 201
 
-@app.route('/api/list/<int:lista_id>/remove/<int:conteudo_id>', methods=['DELETE'])
+@app.route('/api/lists/<int:lista_id>/remove/<int:conteudo_id>', methods=['DELETE'])
 def remover_conteudo_lista(lista_id, conteudo_id):
     associacao = ListaConteudo.query.filter_by(lista_id=lista_id, catalogo_id=conteudo_id).first()
     if not associacao:
