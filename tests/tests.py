@@ -1,14 +1,10 @@
 import pytest
-from run import app, db, insert_catalogo_padrao, ListaReproducao, Catalogo, ListaConteudo
+from run import app, ListaReproducao, Catalogo, ListaConteudo
 
 @pytest.fixture
 def client():
     app.config['TESTING'] = True
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'  
     with app.test_client() as client:
-        with app.app_context():
-            db.create_all()
-            insert_catalogo_padrao()
         yield client
 
 def test_login_route(client):
