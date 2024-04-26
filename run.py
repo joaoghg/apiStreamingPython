@@ -304,6 +304,10 @@ def adicionar_conteudo_lista(lista_id):
 
     catalogo_id = dados['catalogo_id']
 
+    video = Catalogo.query.get(catalogo_id)
+    if not video:
+        return jsonify({'msg': 'Vídeo não encontrado!'}), 404
+
     nova_associacao = ListaConteudo(catalogo_id=catalogo_id, lista_id=lista_id)
     db.session.add(nova_associacao)
     db.session.commit()
